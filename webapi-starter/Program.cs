@@ -9,12 +9,21 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddDbContext<TodoContext>(opt => opt.UseInMemoryDatabase("TodoList"));
 
+// Required for endpoint metadata (especially useful for minimal APIs / explorer)
+builder.Services.AddEndpointsApiExplorer();
+
+// Generates OpenAPI/Swagger document
+builder.Services.AddSwaggerGen();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    // Enable Swagger middleware + UI (commonly only in Development)
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
