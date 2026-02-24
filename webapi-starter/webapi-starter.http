@@ -1,6 +1,42 @@
-@webapi_starter_HostAddress = http://localhost:5054
-
-GET {{webapi_starter_HostAddress}}/weatherforecast/
+### Get Weather Forecast
+# @name getWeatherForecast
+GET {{baseUrl}}/weatherforecast
 Accept: application/json
+
+> {%
+// Response handler (JavaScript)
+client.test("Status is 200", function () {
+  client.assert(response.status === 200, "Expected HTTP 200");
+});
+
+client.test("Response is JSON", function () {
+  client.assert(
+    response.contentType && response.contentType.mimeType === "application/json",
+    "Expected application/json"
+  );
+});
+
+client.test("Response is an array", function () {
+  client.assert(Array.isArray(response.body), "Expected response body to be an array");
+});
+
+client.test("Forecast contains 5 entries", function () {
+  client.assert(response.body.length === 5, "Expected 5 forecast entries");
+});
+
+client.test("Each entry has required fields", function () {
+  response.body.forEach(function (item) {
+    client.assert(item.date !== undefined, "Missing 'date' field");
+    client.assert(item.temperatureC !== undefined, "Missing 'temperatureC' field");
+    client.assert(item.temperatureF !== undefined, "Missing 'temperatureF' field");
+  });
+});
+
+// Save the first forecast date for reference
+const body = response.body;
+if (body && body.length > 0) {
+  client.global.set("firstForecastDate", body[0].date);
+}
+%}
 
 ###
