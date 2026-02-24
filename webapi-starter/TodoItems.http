@@ -1,0 +1,218 @@
+### =============================================
+### TodoItems API – Full CRUD test scenarios
+### Intended execution order: POST → GET all →
+### GET by ID → PUT → DELETE → GET (404)
+### =============================================
+
+### 1. Create a new TodoItem
+# @name createTodo
+POST {{baseUrl}}/api/TodoItems
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Buy groceries",
+  "isComplete": false
+}
+
+> {%
+client.test("Status is 201 Created", function () {
+  client.assert(response.status === 201, "Expected HTTP 201");
+});
+
+client.test("Response is JSON", function () {
+  client.assert(
+    response.contentType && response.contentType.mimeType === "application/json",
+    "Expected application/json"
+  );
+});
+
+client.test("Response body has required fields", function () {
+  const body = response.body;
+  client.assert(body.id !== undefined, "Missing 'id' field");
+  client.assert(body.name !== undefined, "Missing 'name' field");
+  client.assert(body.isComplete !== undefined, "Missing 'isComplete' field");
+});
+
+client.test("Name matches request payload", function () {
+  client.assert(response.body.name === "Buy groceries", "Name mismatch");
+});
+
+client.test("isComplete defaults to false", function () {
+  client.assert(response.body.isComplete === false, "Expected isComplete to be false");
+});
+
+// Save the created item's ID for subsequent requests
+const body = response.body;
+if (body && body.id) {
+  client.global.set("todoId", String(body.id));
+}
+%}
+
+###
+
+### 2. Get all TodoItems
+# @name getAllTodos
+GET {{baseUrl}}/api/TodoItems
+Accept: application/json
+
+> {%
+client.test("Status is 200", function () {
+  client.assert(response.status === 200, "Expected HTTP 200");
+});
+
+client.test("Response is JSON", function () {
+  client.assert(
+    response.contentType && response.contentType.mimeType === "application/json",
+    "Expected application/json"
+  );
+});
+
+client.test("Response is an array", function () {
+  client.assert(Array.isArray(response.body), "Expected an array");
+});
+
+client.test("Array contains at least one item", function () {
+  client.assert(response.body.length > 0, "Expected at least one TodoItem");
+});
+
+client.test("Each item has required fields", function () {
+  response.body.forEach(function (item) {
+    client.assert(item.id !== undefined, "Missing 'id' field");
+    client.assert(item.name !== undefined, "Missing 'name' field");
+    client.assert(item.isComplete !== undefined, "Missing 'isComplete' field");
+  });
+});
+%}
+
+###
+
+### 3. Get a single TodoItem by ID
+# @name getTodoById
+GET {{baseUrl}}/api/TodoItems/{{todoId}}
+Accept: application/json
+
+> {%
+client.test("Status is 200", function () {
+  client.assert(response.status === 200, "Expected HTTP 200");
+});
+
+client.test("Response is JSON", function () {
+  client.assert(
+    response.contentType && response.contentType.mimeType === "application/json",
+    "Expected application/json"
+  );
+});
+
+client.test("Returned item ID matches requested ID", function () {
+  client.assert(
+    String(response.body.id) === client.global.get("todoId"),
+    "ID mismatch"
+  );
+});
+
+client.test("Returned item has correct name", function () {
+  client.assert(response.body.name === "Buy groceries", "Name mismatch");
+});
+%}
+
+###
+
+### 4. Update a TodoItem (mark as complete)
+# @name updateTodo
+PUT {{baseUrl}}/api/TodoItems/{{todoId}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "id": {{todoId}},
+  "name": "Buy groceries",
+  "isComplete": true
+}
+
+> {%
+client.test("Status is 204 No Content", function () {
+  client.assert(response.status === 204, "Expected HTTP 204");
+});
+%}
+
+###
+
+### 5. Verify the update – Get the item again to confirm isComplete is now true
+# @name verifyUpdate
+GET {{baseUrl}}/api/TodoItems/{{todoId}}
+Accept: application/json
+
+> {%
+client.test("Status is 200", function () {
+  client.assert(response.status === 200, "Expected HTTP 200");
+});
+
+client.test("isComplete is now true", function () {
+  client.assert(response.body.isComplete === true, "Expected isComplete to be true after update");
+});
+
+client.test("Name is unchanged", function () {
+  client.assert(response.body.name === "Buy groceries", "Name should not have changed");
+});
+%}
+
+###
+
+### 6. Update with mismatched ID – should return 400 Bad Request
+# @name updateTodoMismatchedId
+PUT {{baseUrl}}/api/TodoItems/{{todoId}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "id": 99999,
+  "name": "Buy groceries",
+  "isComplete": true
+}
+
+> {%
+client.test("Status is 400 Bad Request for mismatched ID", function () {
+  client.assert(response.status === 400, "Expected HTTP 400 for mismatched ID");
+});
+%}
+
+###
+
+### 7. Delete the TodoItem
+# @name deleteTodo
+DELETE {{baseUrl}}/api/TodoItems/{{todoId}}
+
+> {%
+client.test("Status is 204 No Content", function () {
+  client.assert(response.status === 204, "Expected HTTP 204 on delete");
+});
+%}
+
+###
+
+### 8. Get deleted item – should return 404 Not Found
+# @name getDeletedTodo
+GET {{baseUrl}}/api/TodoItems/{{todoId}}
+Accept: application/json
+
+> {%
+client.test("Status is 404 Not Found after deletion", function () {
+  client.assert(response.status === 404, "Expected HTTP 404 for deleted item");
+});
+%}
+
+###
+
+### 9. Delete non-existent item – should return 404 Not Found
+# @name deleteNonExistentTodo
+DELETE {{baseUrl}}/api/TodoItems/99999
+
+> {%
+client.test("Status is 404 Not Found for non-existent item", function () {
+  client.assert(response.status === 404, "Expected HTTP 404 for non-existent item");
+});
+%}
+
+###
+
